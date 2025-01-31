@@ -155,6 +155,7 @@ async def approve_transaction(update: Update, context: CallbackContext):
     await context.bot.send_message(user_id, f"Your wallet has been credited with {amount} IRL. 🎉")
     
 # Main Bot Application
+
 def main():
     try:
         # Create the application
