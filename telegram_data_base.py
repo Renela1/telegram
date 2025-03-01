@@ -124,7 +124,7 @@ def get_user(user_id):
     connection = pymysql.connect(**db_config)
     try:
         with connection.cursor() as cursor:
-            sql = "SELECT * FROM users WHERE id = %s"
+            sql = "SELECT * FROM users WHERE promotion_code = %s"
             cursor.execute(sql, (user_id,))
             result = cursor.fetchone()
         return result
@@ -177,4 +177,193 @@ def sign_up(username, password, promotion_code, wallet):
         print(f"An error occurred: {e}")
         return False
     
+
+
+def get_balance(user_id):
+    try:
+        with connection.cursor() as cursor:
+            # Query to fetch the balance from the users table
+            cursor.execute("SELECT wallet FROM users WHERE promotion_code = %s", (user_id,))
+            
+            # Fetch the first result
+            result = cursor.fetchone()
+            print("Query executed. Result:", result)  # Debugging print
+
+    except Exception as e:
+        print(f"Error getting user balance: {e}")
+
+    return result
+
+get_balance(6001068123)
+
+
+def get_user_pass(user_id):
+
+    try:
+        with connection.cursor() as cursor:
+
+            cursor.execute("SELECT username, password FROM users WHERE promotion_code = %s", (user_id,))
+            result = cursor.fetchone()
+
+    except Exception as e:
+        print(f"Error getting user balance: {e}")
+
+    return result
+
+
+def update_wallet(user_id, amount):
+
+    try:
+
+        with connection.cursor() as cursor:
+
+            cursor.execute("UPDATE users SET wallet = wallet + %s WHERE promotion_code = %s", (amount, user_id))
+            connection.commit()
+
+        print(f"Added {amount} to user {user_id}'s wallet successfully.")
+
+    except Exception as e:
+        print(f"Error updating balance: {e}")
+
+    return amount
+
+user_id = 12345
+amount = 200000
+
+
+
+def update_wallet_with_commossion(user_id_1, user_id_2, amount):
+
+    try:
+
+        with connection.cursor() as cursor:
+
+            raw_amount = (amount * (90/100))
+            cost_amount = (amount * (10/100))
+
+            print(raw_amount, cost_amount)
+
+            cursor.execute("UPDATE users SET wallet = wallet + %s WHERE promotion_code = %s", (raw_amount, user_id_1))
+            connection.commit()
+
+            cursor.execute("UPDATE users SET wallet = wallet + %s WHERE promotion_code = %s", (cost_amount, user_id_2))
+            connection.commit()
+
+        print(f"Added {raw_amount} to user {user_id}'s wallet successfully. and added {cost_amount} to user {user_id_2}")
+
+    except Exception as e:
+        print(f"Error updating balance: {e}")
+
+user_id_1 = 6001068123
+user_id_2 = 12345
+amount = 100000
+
+
+def update_wallet(first_user, amount):
+
+    try:
+        with connection.cursor() as cursor:
+
+            cursor.execute("UPDATE users SET wallet = wallet + %s WHERE promotion_code = %s", (amount, first_user))
+            connection.commit()
+
+            print(f'first user updated amount is {amount}')
+
+    except Exception as e:
+        print(f"Error getting user balance: {e}")
+
+    return result
+
+first_user = 7253370126
+second_user = 6001068123
+
+
+def update_wallet_cost(first_user, amount):
+
+    try:
+        with connection.cursor() as cursor:
+
+            cursor.execute("UPDATE users SET wallet = wallet - %s WHERE promotion_code = %s", (amount, first_user))
+            connection.commit()
+
+            print(f'first user updated amount is {amount}')
+
+    except Exception as e:
+        print(f"Error getting user balance: {e}")
+
+    return result
+
+
+
+def save_service(name, type, profile, price):
+
+    connection = pymysql.connect(**db_config)
+    try:
+        with connection.cursor() as cursor:
+            sql = """
+                INSERT INTO services (name, type, profile, price)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                name = VALUES(name),
+                type = VALUES(type),
+                profile = VALUES(profile),
+                price = VALUES(price)
+            """
+            cursor.execute(sql, (name, type, profile, price))
+        connection.commit()
+    finally:
+        connection.close()
+
+
+# price=20000
+# save_service('service2', 'v2ray', '1month', price)
+
+
+def services():
+    all_services = []
+    
+    # Database connection
+    connection = pymysql.connect(**db_config)
+    
+    try:
+        with connection.cursor() as cursor:
+            sql = 'SELECT * FROM services'
+            cursor.execute(sql)
+            fetch = cursor.fetchall()  # Fetch all results as dictionaries
+
+        # Directly append dictionaries to the list
+        for service in fetch:
+            all_services.append({
+                'name': service['name'],
+                'price': service['price'],
+                'profile': service['profile']
+            })
+  
+    except Exception as e:
+        print(f'Error retrieving data from database: {e}')
+    
+    finally:
+        connection.close()  # Ensure connection is closed
+
+    return all_services
+
+# Example usage
+# services()
+
+# service_name = []
+
+# for i in services():
+#    service_name.append(i['name'])
+
+
+# for i in service_name:
+#     selected_service = service_name[1]
+
+
+# print(i)
+
+# if i == 'service2':
+#     inbound_id = 31
+
+# print(inbound_id)
 

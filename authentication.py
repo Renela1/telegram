@@ -45,3 +45,13 @@ async def handle_user_input(update: Update, context: CallbackContext):
         context.user_data['awaiting_password'] = False
         context.user_data['username'] = None
         context.user_data['password'] = None
+
+
+async def add_users(update: Update, context: CallbackContext):
+    """
+    Start the sign-up process by prompting for a username.
+    """
+    await update.message.reply_text("Please enter your desired username:")
+    context.user_data['awaiting_username_2'] = True
+    
+
