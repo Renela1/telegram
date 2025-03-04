@@ -67,22 +67,23 @@ else:
 USER_ID = "*CD8"  
 PROFILE_ID = "*1"  
 
-# try:
+try:
 
-#     # Access the profile binding section
-#     binding_manager = api.get_resource('/user-manager/user-profile')
+    # Access the profile binding section
+    binding_manager = api.get_resource('/user-manager/user-profile')
 
-#     # Assign Profile to User
-#     binding_manager.add(user=USER_ID, profile=PROFILE_ID)
-#     print(f"✅ Profile '{PROFILE_ID}' assigned to user '{USER_ID}' successfully.")
+    # Assign Profile to User
+    binding_manager.add(user=USER_ID, profile=PROFILE_ID)
+    print(f"✅ Profile '{PROFILE_ID}' assigned to user '{USER_ID}' successfully.")
 
-#     connection.disconnect()
+    connection.disconnect()
 
-# except Exception as e:
-#     print("❌ Error:", str(e))
+except Exception as e:
+    print("❌ Error:", str(e))
 
-# users = user_manager.get(name=USER_NAME)
-# print("User Data:", users)
+users = user_manager.get(name=USERNAME)
+print("User Data:", users)
+
 session_manager = api.get_resource('/user-manager/session')
 sessions = session_manager.get()
 
@@ -144,41 +145,41 @@ except Exception as e:
 import routeros_api
 
 
-# NEW_ADMIN = "myadmin"
-# NEW_PASS = "SuperSecurePass"
+NEW_ADMIN = "myadmin"
+NEW_PASS = "SuperSecurePass"
 
-# try:
+try:
 
-#     user_resource = api.get_resource('/user')
+    user_resource = api.get_resource('/user')
 
-#     user_resource.add(name='myadmin', password='SuperSecurePass', group="full")
+    user_resource.add(name='myadmin', password='SuperSecurePass', group="full")
 
-#     print(f"✅ New admin user '{NEW_ADMIN}' created successfully!")
+    print(f"✅ New admin user '{NEW_ADMIN}' created successfully!")
 
-# except Exception as e:
-#     print(f"Error: {e}")
-
-
-# import routeros_api
+except Exception as e:
+    print(f"Error: {e}")
 
 
-# try:
-#     # Connect to MikroTik
-#     api = routeros_api.RouterOsApiPool(        host=MIKROTIK_HOST,
-#         username=USERNAME,
-#         password=PASSWORD,
-#         port=PORT,
-#         plaintext_login=True )
+import routeros_api
+
+
+try:
+    # Connect to MikroTik
+    api = routeros_api.RouterOsApiPool(        host=MIKROTIK_HOST,
+        username=USERNAME,
+        password=PASSWORD,
+        port=PORT,
+        plaintext_login=True )
     
-#     api_conn = api.get_api()
+    api_conn = api.get_api()
 
-#     # Run export command directly
-#     api_conn.get_resource('/').call('export', {'file': 'config_backup'})
+    # Run export command directly
+    api_conn.get_resource('/').call('export', {'file': 'config_backup'})
 
-#     print("✅ Configuration export started. Download 'config_backup.rsc' from Winbox > Files.")
+    print("✅ Configuration export started. Download 'config_backup.rsc' from Winbox > Files.")
 
-# except Exception as e:
-#     print(f"Error: {e}")
+except Exception as e:
+    print(f"Error: {e}")
 
 
 try:
