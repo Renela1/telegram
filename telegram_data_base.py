@@ -61,7 +61,7 @@ with connection:
         result = cursor.fetchone()
         print("Fetched record:", result)
 
-def save_user(user_id, username, promotion_code, wallet):
+def save_user(user_id, username, promotion_code, wallet, seller_code):
     """
     Saves or updates user information in the database.
 
@@ -74,14 +74,15 @@ def save_user(user_id, username, promotion_code, wallet):
     try:
         with connection.cursor() as cursor:
             sql = """
-                INSERT INTO users (id, username, promotion_code, wallet)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO users (id, username, promotion_code, wallet, seller_code)
+                VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
                 username = VALUES(username),
                 promotion_code = VALUES(promotion_code),
-                wallet = VALUES(wallet)
+                wallet = VALUES(wallet),
+                seller_code = VALUES(promotion_code),
             """
-            cursor.execute(sql, (user_id, username, Update.message.from_user.id, 0))
+            cursor.execute(sql, (user_id, username, Update.message.from_user.id, 0, seller_code))
         connection.commit()
     finally:
         connection.close()
@@ -152,7 +153,7 @@ def log_service_selection(user_id, service_name):
     finally:
         connection.close()
 
-def sign_up(username, password, promotion_code, wallet):
+def sign_up(username, password, promotion_code, wallet, seller):
     """
     Registers a new user if the username does not exist in the database.
     """
@@ -167,12 +168,15 @@ def sign_up(username, password, promotion_code, wallet):
                 return False  # Username already exists
 
             # Insert the new user into the database
-            sql = "INSERT INTO users (username, password, promotion_code, wallet) VALUES (%s, %s, %s, %s)"
-            cursor.execute(sql, (username, password, promotion_code, wallet))
-
-            # Commit the transaction
-            connection.commit()
-            return True  # User registered successfully
+            sql = "INSERT INTO users (username, password, promotion_code, wallet, seller_code) VALUES (%s, %s, %s, %s, %s)"
+            cursor.execute(sql, (username, password, promotion_code, wallet, seller))
+            
+            if seller != promotion_code:
+                connection.commit()
+                return True  # User registered successfully
+            else:
+                return False
+        
     except Exception as e:
         print(f"An error occurred: {e}")
         return False
@@ -230,33 +234,88 @@ def update_wallet(user_id, amount):
 user_id = 12345
 amount = 200000
 
-
-
 def update_wallet_with_commossion(user_id_1, user_id_2, amount):
 
     try:
 
         with connection.cursor() as cursor:
 
-            raw_amount = (amount * (90/100))
-            cost_amount = (amount * (10/100))
+            raw_amount = (amount * (80/100))
+            cost_amount = (amount * (20/100))
 
             print(raw_amount, cost_amount)
 
-            cursor.execute("UPDATE users SET wallet = wallet + %s WHERE promotion_code = %s", (raw_amount, user_id_1))
+            cursor.execute("UPDATE users SET wallet = wallet - %s WHERE promotion_code = %s", (amount, user_id_1))
             connection.commit()
 
             cursor.execute("UPDATE users SET wallet = wallet + %s WHERE promotion_code = %s", (cost_amount, user_id_2))
             connection.commit()
 
-        print(f"Added {raw_amount} to user {user_id}'s wallet successfully. and added {cost_amount} to user {user_id_2}")
+        print(f"cost {raw_amount} to user {user_id}'s wallet successfully. and added {cost_amount} to user {user_id_2}")
 
     except Exception as e:
         print(f"Error updating balance: {e}")
 
 user_id_1 = 6001068123
 user_id_2 = 12345
-amount = 100000
+amount = 80000
+
+def distribute_commission(user_promo_code, service_id, selling_price):
+    try:
+        with connection.cursor() as cursor:
+            # Step 1: Get Base Price from 'services' Table
+            cursor.execute("SELECT price FROM services WHERE id = %s", (service_id,))
+            service_data = cursor.fetchone()
+            if not service_data:
+                print("⚠️ Service not found!")
+                return
+            
+            deduct_query = "UPDATE users set wallet = wallet - %s where promotion_code = %s"
+            cursor.execute(deduct_query, (amount, user_promo_code))
+            connection.commit()
+
+            base_price = int(service_data['price'] ) # Base price (e.g., 50,000)
+            markup = int(selling_price - base_price)  # Extra profit to be split
+
+            if markup <= 0:
+                print("⚠️ No extra markup to distribute.")
+                return
+
+            # Step 2: Get the Chain of Sellers
+            sellers = []
+            current_user = user_promo_code  # Start from the buyer's seller
+            while current_user:
+                cursor.execute("SELECT seller_code FROM users WHERE promotion_code = %s", (current_user,))
+                result = cursor.fetchone()
+                if not result or not result['seller_code']:
+                    break  # Stop if no more sellers
+
+                next_seller = result['seller_code']
+                sellers.append(next_seller)  # Add to seller list
+                current_user = next_seller
+
+            # Step 3: Distribute the Profit Evenly
+            num_sellers = len(sellers)
+            if num_sellers == 0:
+                print("⚠️ No sellers to distribute commission.")
+                return
+
+            share_per_seller = int(markup / num_sellers)  # Equal split
+
+            # Step 4: Update Wallets of Sellers
+            for seller_code in sellers:
+                cursor.execute("UPDATE users SET wallet = wallet + %s WHERE promotion_code = %s",
+                               ((int(share_per_seller)), seller_code))
+                connection.commit()
+                print(f"✅ {(int(share_per_seller))} added to seller {seller_code}")
+
+            print(f"✅ {markup} successfully distributed among {num_sellers} sellers.")
+
+    except Exception as e:
+        print(f"❌ Error in commission distribution: {e}")
+
+
+# print(distribute_commission(user_id_2,26, amount))
 
 
 def update_wallet(first_user, amount):
@@ -294,40 +353,50 @@ def update_wallet_cost(first_user, amount):
     return result
 
 
-
-def save_service(name, type, profile, price):
+def save_service(name, type, profile, price, promotion_code):
 
     connection = pymysql.connect(**db_config)
     try:
         with connection.cursor() as cursor:
             sql = """
-                INSERT INTO services (name, type, profile, price)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO services (name, type, profile, price, promotion_code)
+                VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 type = VALUES(type),
                 profile = VALUES(profile),
-                price = VALUES(price)
+                price = VALUES(price),
+                promotion_code = VALUES(promotion_code)
             """
-            cursor.execute(sql, (name, type, profile, price))
+            cursor.execute(sql, (name, type, profile, price, promotion_code))
         connection.commit()
     finally:
         connection.close()
 
 
 # price=20000
-# save_service('service2', 'v2ray', '1month', price)
+# save_service('my_service', 'v2ray', '1month', price, promotion_code=7253370126)
 
 
-def services():
+def services(user_id):
+
+    connection = pymysql.connect(**db_config)
+    try:
+        with connection.cursor() as cursor:
+            sql = "SELECT seller_code FROM users WHERE promotion_code = %s"
+            cursor.execute(sql, (user_id,))
+            result = cursor.fetchone()
+            code = result['seller_code']
+
+    except Exception as e: print(e)
+
     all_services = []
-    
-    # Database connection
+
     connection = pymysql.connect(**db_config)
     
     try:
         with connection.cursor() as cursor:
-            sql = 'SELECT * FROM services'
+            sql = f'SELECT * FROM services WHERE promotion_code = {code}'
             cursor.execute(sql)
             fetch = cursor.fetchall()  # Fetch all results as dictionaries
 
@@ -336,7 +405,8 @@ def services():
             all_services.append({
                 'name': service['name'],
                 'price': service['price'],
-                'profile': service['profile']
+                'profile': service['profile'],
+                'promotion_code': service['promotion_code']
             })
   
     except Exception as e:
@@ -347,23 +417,283 @@ def services():
 
     return all_services
 
+# print(services(6001068123))
+
+import pymysql
+
+def retrieve_services(promotion_code):
+    services = []
+    connection = pymysql.connect(**db_config)  # Ensure db_config is defined
+
+    try:
+        with connection.cursor(pymysql.cursors.DictCursor) as cursor:
+            # Get user_id from promotion_code
+            cursor.execute("SELECT id FROM users WHERE promotion_code = %s;", (promotion_code,))
+            user_row = cursor.fetchone()
+
+            if not user_row:
+                print(f"⚠️ No user found with promotion_code = {promotion_code}")
+                return []  # No user found, return empty list
+            
+            user_id = user_row['id']
+
+            # Query to retrieve service details
+            query = """
+            SELECT 
+                us.id AS user_service_id, 
+                us.service_id AS user_service_service_id,  -- FK in User_Services
+                s.id AS actual_service_id,  -- Actual Service ID from Services table
+                s.profile, 
+                s.type, 
+                s.name, 
+                COALESCE(us.price, s.price, 0) AS final_price  -- Ensure no NULL prices
+            FROM User_Services us
+            JOIN services s ON us.service_id = s.id
+            WHERE us.user_id = %s;
+            """  
+
+            cursor.execute(query, (user_id,))
+            fetch = cursor.fetchall()
+
+            if not fetch:
+                print(f"⚠️ No services found for user_id = {user_id}")
+
+            services = [
+                {
+                    'user_service_id': service['user_service_id'],
+                    'user_service_service_id': service['user_service_service_id'],
+                    'name': service['name'],
+                    'price': service['final_price'],
+                    'profile': service['profile'],
+                    'type': service['type']
+                }
+                for service in fetch
+            ]
+
+    except Exception as e:
+        print(f"❌ Database Error: {e}")
+
+    finally:
+        connection.close()
+
+    return services
+
+
+# print(retrieve_services(6001068123))
+
+
+def buy_services(user_id):
+    connection = pymysql.connect(**db_config)
+
+    try:
+        with connection.cursor(pymysql.cursors.DictCursor) as cursor:
+            # Get seller's promotion_code
+            sql = "SELECT seller_code FROM users WHERE promotion_code = %s"
+            cursor.execute(sql, (user_id,))
+            result = cursor.fetchone()
+
+            if not result:  # Handle case where user doesn't exist
+                return {"error": "User not found or has no seller."}
+
+            seller_code = result['seller_code']
+
+            # Retrieve seller's services
+            query = """
+            SELECT 
+                us.id AS user_service_id, 
+                us.user_id, 
+                us.service_id AS user_service_service_id, 
+                u.promotion_code AS telegram_id,
+                s.profile,  
+                s.type,
+                s.name, 
+                s.price AS original_price, 
+                us.price AS user_price       
+            FROM User_Services us
+            JOIN users u ON us.user_id = u.id
+            JOIN services s ON us.service_id = s.id
+            WHERE u.promotion_code = %s;
+            """
+            
+            cursor.execute(query, (seller_code,))
+            fetch = cursor.fetchall()
+
+    except Exception as e:
+        return {"error": str(e)}
+
+    finally:
+        connection.close()  # Ensure connection is always closed
+
+    # Format the response
+    services = [{
+        'name': service['name'],
+        'price': service['user_price'],
+        'original_price': service['original_price'],
+        'profile': service['profile'],
+        'promotion_code': service['telegram_id'],
+        'type': service['type'],
+        'user_service_id': service['user_service_service_id']
+    } for service in fetch]
+
+    return services
+
 # Example usage
-# services()
+# print(buy_services(6001068123))
 
-# service_name = []
+def update_service_price(user_id, service_id, new_price):
+    connection = pymysql.connect(**db_config)
 
-# for i in services():
-#    service_name.append(i['name'])
+    try:
+        with connection.cursor(pymysql.cursors.DictCursor) as cursor:
+            # Step 1: Get the seller_code of the user
+            sql = "SELECT seller_code FROM users WHERE promotion_code = %s"
+            cursor.execute(sql, (user_id,))
+            result = cursor.fetchone()
+
+            if not result:
+                return {"error": "User not found or has no seller."}
+
+            seller_code = result["seller_code"]
+
+            # Step 2: Get the minimum price from the seller
+            query = """
+            SELECT us.price AS min_price 
+            FROM User_Services us
+            JOIN users u ON us.user_id = u.id
+            WHERE u.promotion_code = %s AND us.service_id = %s
+            """
+            cursor.execute(query, (seller_code, service_id))
+            seller_service = cursor.fetchone()
+            print(seller_service)
+
+            if not seller_service:
+                return {"error": "Seller's service not found."}
+
+            min_price = int(seller_service["min_price"])
+            
+            print(min_price)
+            print(seller_code)
+            # Step 3: Check if new price is valid
+            if new_price < min_price:
+
+                accepted = False
+                return {"error": f"New price {new_price} is lower than the minimum allowed price {min_price}."}
+            else: accepted = True
+
+            # Step 4: Update the service price for the user
+            update_sql = """
+            UPDATE User_Services 
+            SET price = %s 
+            WHERE user_id = (SELECT id FROM users WHERE promotion_code = %s) 
+            AND service_id = %s
+            """
+            cursor.execute(update_sql, (new_price, user_id, service_id))
+            connection.commit()
+
+            print({"success": f"Service price updated to {new_price}."})
+
+            return accepted
+
+    except Exception as e:
+        return {"error": str(e)}
+
+    finally:
+        connection.close()
+  
+
+# # Example Usage
+# print(update_service_price(6001068123, 3, 280000))
 
 
-# for i in service_name:
-#     selected_service = service_name[1]
+def all_services():
+    all_services = []
+    
+    # Database connection
+    connection = pymysql.connect(**db_config)
+    
+    try:
+        with connection.cursor() as cursor:
+            sql = f'SELECT * FROM services'
+            cursor.execute(sql)
+            fetch = cursor.fetchall()  # Fetch all results as dictionaries
+
+        # Directly append dictionaries to the list
+        for service in fetch:
+            all_services.append({
+                'name': service['name'],
+                'price': service['price'],
+                'profile': service['profile'],
+                'promotion_code': service['promotion_code']
+            })
+  
+    except Exception as e:
+        print(f'Error retrieving data from database: {e}')
+    
+    finally:
+        connection.close()  # Ensure connection is closed
+
+    return all_services
 
 
-# print(i)
+def add_seller_services_to_user(user_id):
 
-# if i == 'service2':
-#     inbound_id = 31
+    connection = pymysql.connect(**db_config)
 
-# print(inbound_id)
+    try:
+        with connection.cursor(pymysql.cursors.DictCursor) as cursor:
+         
+            cursor.execute("SELECT seller_code FROM users WHERE promotion_code = %s", (user_id,))
+            result = cursor.fetchone()
 
+            if not result:
+                return {"error": "User not found or has no seller."}
+
+            seller_code = result["seller_code"]
+
+            query = """
+            SELECT us.service_id, us.price
+            FROM User_Services us
+            JOIN users u ON us.user_id = u.id
+            WHERE u.promotion_code = %s;
+            """
+
+            cursor.execute(query, (seller_code,))
+            seller_services = cursor.fetchall()
+
+            if not seller_services:
+                return {"error": "Seller has no services."}
+
+         
+            for service in seller_services:
+                service_id = service["service_id"]
+                price = service["price"] 
+
+                # Check if the user already has this service
+                check_query = """
+                SELECT COUNT(*) AS count FROM User_Services 
+                WHERE user_id = (SELECT id FROM users WHERE promotion_code = %s) 
+                AND service_id = %s;
+                """
+                cursor.execute(check_query, (user_id, service_id))
+                exists = cursor.fetchone()["count"]
+
+                if exists == 0:  # If service is not already assigned, add it
+                    insert_query = """
+                    INSERT INTO User_Services (user_id, service_id, price)
+                    VALUES ((SELECT id FROM users WHERE promotion_code = %s), %s, %s);
+                    """
+                    cursor.execute(insert_query, (user_id, service_id, price))
+                else:
+                    return {'failed': 'records already exist for user'}
+
+            connection.commit()
+            return {"success": "Seller's services successfully added to the user."}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+    finally:
+        connection.close()
+
+
+# print(add_seller_services_to_user(6001068123))

@@ -172,12 +172,11 @@ print(expiry_timestamp_1)  # Use this value in your payload
 
 def add_client(inbound_id, name, time):
 
-    login_url = "https://s1.arganas.com:2053/login"
+    login_url = "https://s1.arganas.com:2053/GE6PjWWj9BENriW/login"
     credentials = {
         "username": "shayan",  # Replace with actual username
         "password": "sh1sh2sh3"   # Replace with actual password
     }
-
 
     session = requests.Session()
 
@@ -195,7 +194,7 @@ def add_client(inbound_id, name, time):
         print("An error occurred during login:", e)
             
 
-    list_inbounds_url = f"https://s1.arganas.com:2053/panel/api/inbounds/get/{inbound_id}"
+    list_inbounds_url = f"https://s1.arganas.com:2053/GE6PjWWj9BENriW/panel/api/inbounds/get/{inbound_id}"
 
 
     # Check the current list of inbounds and gather existing ports
@@ -243,7 +242,7 @@ def add_client(inbound_id, name, time):
     }
 
     # Step 4: Send the POST request to add the client with the cookies
-    add_client_url = "https://s1.arganas.com:2053/panel/api/inbounds/addClient"
+    add_client_url = "https://s1.arganas.com:2053/GE6PjWWj9BENriW/panel/api/inbounds/addClient"
 
     try:
         
@@ -280,4 +279,4 @@ def add_client(inbound_id, name, time):
     return config_url
 
 
-
+# add_client(2, 'asjdidi', expiry_timestamp_1)
