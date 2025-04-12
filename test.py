@@ -1,25 +1,22 @@
+def remove_consecutive_duplicates(s):
+    string = f"{s[0]}"
+    if not s:
 
-from datetime import datetime, timedelta
-now = datetime.utcnow()
+        return ""
 
-# Add 3 months (approx. 90 days)
-expiry_time_3 = now + timedelta(days=90)
+    result = s[0]  
 
-# Convert to timestamp (milliseconds)
-expiry_timestamp_3 = int(expiry_time_3.timestamp() * 1000)
+    for char in s[1:]:
 
-print(expiry_timestamp_3)  # Use this value in your payload
+        if char != result[-1]:
 
-expiry_time_2 = now + timedelta(days=60)
+            result += char
+            print(result)
+            string += char
 
-# Convert to timestamp (milliseconds)
-expiry_timestamp_2 = int(expiry_time_2.timestamp() * 1000)
+    return string
 
-print(expiry_timestamp_2)  # Use this value in your payload
+output_string = remove_consecutive_duplicates("AAABBCCCDDDDAABC")
 
-expiry_time_1 = now + timedelta(days=30)
+print("خروجی:", (output_string))
 
-# Convert to timestamp (milliseconds)
-expiry_timestamp_1 = int(expiry_time_1.timestamp() * 1000)
-
-print(expiry_timestamp_1)  # Use this value in your payload

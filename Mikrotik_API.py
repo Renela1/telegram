@@ -103,21 +103,6 @@ for user in ppp_secrets:
         print(f"User '{USER_TO_CHECK}' has profile: {user['profile']}")
 
 
-# try:
-#     log_entries = api.get_resource('/log').get()
-    
-#     found_logs = False  # Flag to check if we found any logs
-#     for log in log_entries:
-#         if USER_TO_CHECK in log['message']:
-#             print(f"Log: {log['message']}")
-#             found_logs = True  # Mark that we found a log
-    
-#     if not found_logs:
-#         print(f"No logs found for user '{USER_TO_CHECK}'.")
-
-# except Exception as e:
-#     print(f"Error: {e}")
-
 services = api.get_resource('/ip/service').get()
 ovpn_service = next((s for s in services if s['name'] == 'ovpn'), None)
 

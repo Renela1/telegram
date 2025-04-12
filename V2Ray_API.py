@@ -3,6 +3,7 @@ import random
 import uuid
 import json
 import telegram_data_base
+import V2Database
 
 # Function to add inbound with dynamic parameters
 def add_inbound(expiryTime, remark, profile, limit):
@@ -172,9 +173,9 @@ print(expiry_timestamp_1)  # Use this value in your payload
 
 def add_client(inbound_id, name, time):
 
-    login_url = "https://s1.arganas.com:2053/GE6PjWWj9BENriW/login"
+    login_url = "https://dev.arganas.com:8081/GiC8FMnhnWFNnEx/login"
     credentials = {
-        "username": "shayan",  # Replace with actual username
+        "username": "shadow",  # Replace with actual username
         "password": "sh1sh2sh3"   # Replace with actual password
     }
 
@@ -194,10 +195,11 @@ def add_client(inbound_id, name, time):
         print("An error occurred during login:", e)
             
 
-    list_inbounds_url = f"https://s1.arganas.com:2053/GE6PjWWj9BENriW/panel/api/inbounds/get/{inbound_id}"
+    list_inbounds_url = f"https://dev.arganas.com:8081/GiC8FMnhnWFNnEx/panel/api/inbounds/get/{inbound_id}"
 
 
     # Check the current list of inbounds and gather existing ports
+    
     try:
         inbounds_response = session.get(list_inbounds_url)
         if inbounds_response.status_code == 200:
@@ -242,7 +244,7 @@ def add_client(inbound_id, name, time):
     }
 
     # Step 4: Send the POST request to add the client with the cookies
-    add_client_url = "https://s1.arganas.com:2053/GE6PjWWj9BENriW/panel/api/inbounds/addClient"
+    add_client_url = "https://dev.arganas.com:8081/GiC8FMnhnWFNnEx/panel/api/inbounds/addClient"
 
     try:
         
@@ -273,10 +275,100 @@ def add_client(inbound_id, name, time):
         print(f"An error occurred while adding client: {e}")
 
     path ='/'
-    config_url = f"vless://{new_client_id}@s1.arganas.com:443?type=ws&path=%2F&host=s1.arganas.com&security=tls&fp=chrome&alpn=http%2F1.1#{name}{new_client_id}"
+    config_url = f"vless://{new_client_id}@dev.arganas.com:443?type=ws&path=%2F&host=dev.arganas.com&security=tls&fp=chrome&alpn=http%2F1.1#{name}-{new_client_id}"
     print(config_url)
 
     return config_url
 
 
-# add_client(2, 'asjdidi', expiry_timestamp_1)
+# add_client(38, 'Katy', expiry_timestamp_1)
+
+
+def delete_client(inbound_id, uuid):
+
+    delet_url = f"https://dev.arganas.com:8081/GiC8FMnhnWFNnEx/panel/api/inbounds/{inbound_id}/delClient/{uuid}"
+
+    login_url = "https://dev.arganas.com:8081/GiC8FMnhnWFNnEx/login"
+    credentials = {
+        "username": "shadow",  # Replace with actual username
+        "password": "sh1sh2sh3"   # Replace with actual password
+    }
+
+    session = requests.Session()
+
+    # Login to the server
+    try:
+        response = session.post(login_url, data=credentials)
+        if response.status_code == 200:
+            print("Login successful!")
+            cookies = session.cookies.get_dict()
+            print(f"Cookies: {cookies}")
+        else:
+            print(f"Login failed. Status Code: {response.status_code}")
+            
+    except requests.exceptions.RequestException as e:
+        print("An error occurred during login:", e)
+            
+
+    try:
+
+        response = session.post(delet_url, headers=cookies)
+        if response.status_code == 200:
+            print('client deleted successfuly \n', response.text)
+        else:
+            print(" couldn't delete client \n", response.text)
+
+    except requests.exceptions.RequestException as e:
+        print("An error occurred during login:", e)
+
+
+# delete_client(38, '13c7aa06-8662-4e5c-a927-0f28b0279223')
+
+
+def update_clients(user_id, time, name, new_client_id):
+
+    client_url = f"http://dev.arganas.com:8081/GiC8FMnhnWFNnEx/panel/api/inbounds/updateClient/{user_id}"
+
+    login_url = "https://dev.arganas.com:8081/GiC8FMnhnWFNnEx/login"
+    credentials = {
+        "username": "shadow",  # Replace with actual username
+        "password": "sh1sh2sh3"   # Replace with actual password
+    }
+
+    session = requests.Session()
+
+    # Login to the server
+    try:
+        response = session.post(login_url, data=credentials)
+        if response.status_code == 200:
+            print("Login successful!")
+            cookies = session.cookies.get_dict()
+            print(f"Cookies: {cookies}")
+        else:
+            print(f"Login failed. Status Code: {response.status_code}")
+            
+    except requests.exceptions.RequestException as e:
+        print("An error occurred during login:", e)
+
+    settings = {
+        "clients": [{
+            "id": new_client_id,
+            "alterId": 0,
+            "email": f"{name}{new_client_id}@gmail.com",
+            "limitIp": 2,
+            "totalGB": 42949672960,
+            "expiryTime": time,  # Example expiry time in milliseconds
+            "enable": True,
+            "tgId": "",
+            "subId": ""
+        }],
+        "decryption": "none",
+        "fallbacks": []
+
+        }
+
+    payload = {
+        
+        "id":38,
+        "settings": json.dumps(settings)
+    }

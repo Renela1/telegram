@@ -9,6 +9,8 @@ import time
 import telegram_data_base
 import requests
 import asyncio 
+import V2Database
+
 
 keyboard = [
     [ "تایین قیمت سرویس", "🛒 خرید سرویس"],
@@ -359,6 +361,34 @@ async def validate_payment(update: Update, context: CallbackContext):
     print('awaiting_user_code', context.user_data['awaiting_user_code'])
 
 
+async def show_clients(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+
+    # Fetch clients using the function, passing the seller's user ID
+    clients = V2Database.fetch_xui_clients_via_ssh("8.211.55.81", "root", "Shayan1@pass", str(user_id))
+
+    if clients:
+        print(clients)  # Debugging to see the list of clients
+
+        # Store in context so `handle_selection()` can access it
+        context.user_data["available_clients"] = clients
+
+        # Create inline keyboard buttons for each client
+        keyboard = [
+            [InlineKeyboardButton(
+                text=str(client),  # Ensure text is a string, if it's a dictionary, convert it to a string
+                callback_data=f"client_{str(client)}"  # Same here, ensuring callback_data is a string
+            )]
+            for client in clients
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text("کلاینت مورد نظر خود را انتخاب کنید:", reply_markup=reply_markup)
+    else:
+        await update.message.reply_text("هیچ کلاینتی پیدا نشد.")
+
+
+
 async def handle_selection(update: Update, context: CallbackContext):
 
     query = update.callback_query
@@ -385,9 +415,48 @@ async def handle_selection(update: Update, context: CallbackContext):
         print(service_id)
 
     elif query.data.startswith("validate_"):
+
         user_id = query.data.replace("validate_", "")
         await validate_payment(update, context)
+    
+    elif query.data.startswith("client_"):
 
+        client = query.data.replace("client_", "")
+        client_email = client.replace(str(user_id), "")
+        client_uuid = client_email.replace("@gmail.com", "")
+        print(client_uuid)
+
+        context.user_data["client_uuid"] = client_uuid
+
+        await query.message.reply_text(client_uuid)
+
+        ACTIONS = ['حذف کلاینت', 'آپدیت کلاینت']
+
+        keyboard = [
+            [InlineKeyboardButton(
+                text=str(action), 
+                callback_data=f"{str(action)}" 
+            )]
+            for action in ACTIONS
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.message.reply_text("عملیات مورد نظر خود را انتخاب کنید:", reply_markup=reply_markup)
+
+        InlineKeyboardButton
+
+    elif query.data == 'حذف کلاینت':
+
+        client_uuid = context.user_data.get("client_uuid")
+
+        print(client_uuid)
+        try:
+            V2Ray_API.delete_client(38, client_uuid)
+
+            await query.message.reply_text('کلاینت با موفقیت حذف شد')
+        except Exception as e:
+            print(e) 
+            
     else:
 
         selected_service = query.data  # Here we get the selected service
@@ -506,7 +575,7 @@ async def get_user_id(update: Update, context: CallbackContext):
 
     username = context.args[0]
 
-    # Ensure username starts with '@'
+    # Ensure username starts with '@'  
     if not username.startswith("@"):
         await update.message.reply_text("Please provide a valid username starting with '@'.")
         return
@@ -621,7 +690,7 @@ async def handle_user_input(update: Update, context: CallbackContext):
         print(profile)
 
 
-        if price >= 500000.0 :
+        if price >= 50000 :
 
             context.user_data['service_price'] = price
 
@@ -644,7 +713,7 @@ async def handle_user_input(update: Update, context: CallbackContext):
         
         else:
             await update.message.reply_text('قیمت سرویس نمیتواند کمتر از 500000 ریال باشد')
-            return 
+            return      
             
     elif context.user_data.get('awaiting_user_promotion_code'):
         try:
@@ -756,6 +825,9 @@ async def handle_user_input(update: Update, context: CallbackContext):
     elif user_message == "💰 شارژ کیف پول":
         await charge_wallet(update, context)
 
+    elif user_message == "⚙ مدیریت نمایندگان":
+        await show_clients(update, context)
+
 
 async def charge_wallet(update: Update, context: CallbackContext):
 
@@ -825,6 +897,7 @@ def main():
         app.add_handler(CommandHandler('vlidate', validate_payment))
         app.add_handler(CommandHandler('charge_wallet', charge_wallet))
         app.add_handler(CommandHandler('update_price', update_seller_services))
+        app.add_handler(CommandHandler('clients', show_clients))
         app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
         logger.info("Bot is running...")
